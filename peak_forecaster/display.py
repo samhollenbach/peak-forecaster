@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 def baseline_plot(x_data, y_data, prediction):
     fig, ax = plt.subplots(figsize=(14, 8))
@@ -56,3 +56,29 @@ def lt_plot(site, data, t1=None, t2=None, max_peak=None):
     if max_peak:
         ax2.set_ylim(-14, max_peak)
     return ax
+
+
+def plot_history(history):
+  hist = pd.DataFrame(history.history)
+  hist['epoch'] = history.epoch
+
+  plt.figure()
+  plt.xlabel('Epoch')
+  plt.ylabel('Mean Abs Error kW')
+  plt.plot(hist['epoch'], hist['val_mean_absolute_error'],
+           label = 'Val Error')
+  plt.plot(hist['epoch'], hist['mean_absolute_error'],
+           label='Train Error')
+  plt.ylim([0,50])
+  plt.legend()
+
+  plt.figure()
+  plt.xlabel('Epoch')
+  plt.ylabel('Mean Square Error [$kW^2$]')
+  plt.plot(hist['epoch'], hist['val_mean_squared_error'],
+           label = 'Val Error')
+  plt.plot(hist['epoch'], hist['mean_squared_error'],
+           label='Train Error')
+  plt.ylim([0,500])
+  plt.legend()
+  plt.show()
