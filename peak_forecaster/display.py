@@ -1,11 +1,14 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-def baseline_plot(x_data, y_data, prediction):
+def baseline_plot(x_data, y_data, prediction, prediction_time):
+    data = x_data.copy()
+    data['minutes'] = data['timestamp'].dt.hour * 60 + data['timestamp'].dt.minute
+
     fig, ax = plt.subplots(figsize=(14, 8))
-    ax.plot(x_data['timestamp'], y_data['building_baseline'], label='Baseline')
-    ax.axhline(prediction, color='red')
-    ax.set_title(f'{x_data.iloc[0]["date_site"]}')
+    ax.plot(data['minutes'], y_data['building_baseline'], label='Baseline')
+    ax.plot([prediction_time], prediction, color='red', marker='x')
+    ax.set_title(f'{data.iloc[0]["date_site"]}')
     plt.show()
 
 
