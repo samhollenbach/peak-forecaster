@@ -34,7 +34,7 @@ def extract_features(x_train, y_train, x_test, y_test):
             date = peak_dt.date()
             peak_time_minute = (peak_dt.hour * 60 + peak_dt.minute)
             day_y.append(peak_load)
-            day_y.append(peak_time_minute)
+            # day_y.append(peak_time_minute)
 
 
             # Determine if day has solar
