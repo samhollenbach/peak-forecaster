@@ -14,7 +14,7 @@ def evaluate_basic(network, x_train, y_train, x_test, y_test):
     ###############
     # Train Model #
     ###############
-    history = network.train_model(model, x_train, y_train)
+    history = network.train_model(x_train, y_train)
 
     ##################
     # Evaluate Model #

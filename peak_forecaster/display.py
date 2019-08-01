@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.pyplot import text
 import pandas as pd
 
 def baseline_plot(x_data, y_data, prediction):
@@ -12,7 +13,7 @@ def baseline_plot(x_data, y_data, prediction):
     plt.show()
 
 
-def baseline_plot2(data):
+def baseline_plot2(data, savings=None):
 
     fig, ax = plt.subplots(figsize=(14, 8))
     ax.plot(data['timestamp'], data['building_baseline'], label='Baseline')
@@ -24,9 +25,15 @@ def baseline_plot2(data):
     ax.plot(data['timestamp'], data['discharge_limits'], label='Discharge Limit')
     ax.plot(data['timestamp'], -data['charge_limits'], label='Charge Limit')
     ax.plot(data['timestamp'], data['temperature'], label='Temperature')
-    ax.set_title(f'{data.iloc[0]["date_site"]}')
+    if 'peak_prediction' in data.columns:
+        ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
+    title = f'{data.iloc[0]["date_site"]}'
+    if savings:
+        title = f'{title} - Savings: ${savings:.2f}'
+    ax.set_title(title)
     ax.legend(loc='upper right')
-    ax.set_ylim(-20, 500)
+    ax.set_ylim(None, None)
+
     plt.show()
 
 

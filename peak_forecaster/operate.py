@@ -1,6 +1,7 @@
 import numpy as np
 from tariff.bill_calculator import BillCalculator
 import pandas as pd
+from peak_forecaster import process
 
 class StandardOperator:
 
@@ -23,24 +24,45 @@ class StandardOperator:
         target_bill = self.bill_calculator.calculate_total_bill(target_load, load_column='target')
         return base_bill - target_bill
 
+    def get_demand_savings(self, baseline_load, target_load):
+        base_bill = self.bill_calculator.calculate_demand_bill(baseline_load, load_column='building_baseline')
+        target_bill = self.bill_calculator.calculate_demand_bill(target_load, load_column='target')
+        return base_bill - target_bill
+
+    def get_energy_savings(self, baseline_load, target_load):
+        base_bill = self.bill_calculator.calculate_energy_bill(baseline_load, load_column='building_baseline')
+        target_bill = self.bill_calculator.calculate_energy_bill(target_load, load_column='target')
+        return base_bill - target_bill
+
     def prepare_data(self, data):
-        data = data.copy()
-        data = data[
-            (data.timestamp >= self.start) & (data.timestamp <= self.end)]
-        data['offsets'] = 0
-        data['soc'] = 0
-        data['target'] = data['building_baseline']
+        """
+        Add offsets, soc, and target field placeholders
 
-        data = data.assign(
-            date=data.timestamp.apply(
-                lambda t: f"{t:%Y}-{t:%m}-{t:%d}"))
-        daily_data = [day_data for _, day_data in data.groupby('date_site')]
-        return daily_data
+        :param data:
+        :return:
+        """
+        new_data = []
+        if not isinstance(data, list):
+            data = process.group_data(data)
+        for day in data:
+            day['offsets'] = 0
+            day['soc'] = 0
+            day['target'] = day['building_baseline']
+            new_data.append(day)
+        return new_data
 
 
-    def run_standard_operation(self, time_start, time_end, data, thresholds):
+    def run_standard_operation(self, time_start, time_end, data, predictions=None, crs_predictions=None, thresholds=None, threshold_matching=True):
+
+        if thresholds is None and (predictions is None or crs_predictions is None):
+            raise ValueError("Standard operational strategy needs either peak predictions or target thresholds provided")
+        elif thresholds is None:
+            # TODO: Fake thresholds - replace with actual equation
+            thresholds = [p[0] - crs[0] for p, crs in zip(predictions, crs_predictions)]
+
         highest_threshold = thresholds[0]
 
+        # Add necessary columns and group data by days if needed
         daily_data = self.prepare_data(data)
 
         if len(daily_data) != len(thresholds):
@@ -51,19 +73,36 @@ class StandardOperator:
         for i, day in enumerate(daily_data):
             current_soc = 0
 
+            # Follow the highest threshold set
+            # even if we haven't reached a target that high
+            if threshold_matching:
+                if thresholds[i] > highest_threshold:
+                    highest_threshold = thresholds[i]
+
+            # Add predictions to data for display
+            if predictions is not None:
+                day['peak_prediction'] = predictions[i][0]
+            if crs_predictions is not None:
+                day['crs_prediction'] = crs_predictions[i][0]
+
+            # What the predicted threshold was for display
             day['threshold_old'] = thresholds[i]
 
-            if thresholds[i] > highest_threshold:
-                highest_threshold = thresholds[i]
-
+            # What the actual followed threshold is for action
             day['threshold'] = highest_threshold
+
+            # Run operation
             for index, row in day.iterrows():
                 ts = row['timestamp']
                 day.at[index, 'threshold'] = highest_threshold
+
+                # If not in testing window
                 if ts.time() < time_start or ts.time() > time_end:
                     continue
 
                 current_load = row['building_baseline']
+
+                # Get new SOC and offset for this interval
                 soc, offset = self.get_next_soc_offset(
                     current_load,
                     current_soc,
@@ -80,9 +119,7 @@ class StandardOperator:
                     highest_threshold = target
                 day.at[index, 'target'] = target
 
-
                 current_soc = soc
-
 
             new_day_data.append(day)
         new_data = pd.concat(new_day_data)
@@ -96,22 +133,23 @@ class StandardOperator:
         # FOR HEAT LEAK BEFORE
         current_soc -= heat_leak
 
+        # TODO: Check if COPs need the factor of 4
+
         if threshold_offset == 0:  # DMT mode
             offset = 0
             soc = current_soc
         elif threshold_offset < 0:  # CHG mode
             offset = max(threshold_offset, -chg_limit)
-            soc = current_soc - (offset * chg_cop)
+            soc = current_soc - (offset * chg_cop) / 4
             if soc > self.lt_capacity:
-                offset = (self.lt_capacity - current_soc) / chg_cop
+                offset = (self.lt_capacity - current_soc) / chg_cop * 4
                 soc = self.lt_capacity
         else:  # DCHG mode
             offset = min(threshold_offset, dchg_limit)
-            soc = current_soc - (offset * dchg_cop)
+            soc = current_soc - (offset * dchg_cop) / 4
             if soc < self.tank_min:
-                offset = (self.tank_min - current_soc) / dchg_cop
+                offset = (self.tank_min - current_soc) / dchg_cop * 4
                 soc = self.tank_min
-
         return soc, offset
 
 

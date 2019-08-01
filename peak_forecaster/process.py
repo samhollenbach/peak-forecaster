@@ -15,31 +15,49 @@ for i, day in enumerate(days_of_week):
     day_of_week_encoding[day] = tuple(encoding)
 
 
-def split_x_y(data):
+def split_x_y(data, y_value='building_baseline'):
     x = []
     y = []
+    y_list = list({y_value, 'building_baseline', 'timestamp'})
+
     for day in data:
-        x.append(day.copy().drop('building_baseline', axis=1))
-        y.append(day[['building_baseline', 'timestamp']])
+        x.append(day.copy().drop(y_value, axis=1))
+        y.append(day[y_list])
     return x, y
 
+
+def group_data(data, by='date_site'):
+    # Group data by day
+    grouped_data = [day for _, day in data.groupby(by)]
+    return grouped_data
 
 # @pickle_jar(reload=False)
 def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_date=None,
                      timestamp_column='timestamp'):
+
+    # Check for test set time bounds
+    # TODO: Add support for multi site runs with test_start/end
+    if test_start_date is not None and test_end_date is not None:
+        if test_start_date < data.iloc[0][timestamp_column].date():
+            raise ValueError("Test start date is before the start of the time series data")
+        if test_start_date > data.iloc[-1][timestamp_column].date():
+            raise ValueError("Test start date is after the end of the time series data")
+        if test_end_date > data.iloc[-1][timestamp_column].date():
+            raise ValueError("Test end date is after the end of the time series data")
+
     # Output lists
     train = []
     test = []
 
     # Group data by day
-    daily_data = [day for _, day in data.groupby('date_site')]
+    daily_data = group_data(data)
 
     # Random seed
     np.random.seed(seed)
     rands = np.random.rand(len(daily_data))
 
     # Lag variables
-    num_lags = 5
+    num_lags = 3
     lag_vals = deque([])
     last_site = None
 
@@ -76,7 +94,7 @@ def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_d
     return train, test
 
 
-def extract_features(data):
+def extract_features(data, y_value='building_baseline', nlags=0):
 
     days_of_week = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     encoding_base = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -86,11 +104,11 @@ def extract_features(data):
         encoding[i] = 1.0
         day_of_week_encoding[day] = tuple(encoding)
 
-    def get_stats(data):
+    def get_stats(data, y_value):
         features_x = []
         features_y = []
 
-        x, y = split_x_y(data)
+        x, y = split_x_y(data, y_value=y_value)
 
         for x_data, y_data in zip(x, y):
             day_x = []
@@ -100,13 +118,13 @@ def extract_features(data):
             y_data_frame = pd.DataFrame(y_data_frame)
 
             # Find baseline peak load
-            peak_load = y_data['building_baseline'].loc[
+            peak_load = y_data[y_value].loc[
                 y_data['building_baseline'].idxmax()]
             interval = y_data_frame.loc[
                 y_data_frame['building_baseline'].idxmax()]
             peak_dt = pd.to_datetime(interval['timestamp'])
             date = peak_dt.date()
-            peak_time_minute = (peak_dt.hour * 60 + peak_dt.minute)
+            # peak_time_minute = (peak_dt.hour * 60 + peak_dt.minute)
             day_y.append(peak_load)
             # day_y.append(peak_time_minute)
 
@@ -131,8 +149,6 @@ def extract_features(data):
             solar = 1 if solar_avg < reg_avg else 0
             day_x.append(solar)
 
-            x_stats = x_data.describe()
-
             # Add is holiday
             cal = USFederalHolidayCalendar()
             holiday = cal.holidays(start=date, end=date)
@@ -155,13 +171,12 @@ def extract_features(data):
             day_x.append(mbh)
 
             # Add temperature stats
-            temp_fudge = 0
+            x_stats = x_data.describe()
+            day_x.append(x_stats.at['max', 'temperature'])
+            day_x.append(x_stats.at['min', 'temperature'])
+            day_x.append(x_stats.at['mean', 'temperature'])
 
-            day_x.append(x_stats.at['max', 'temperature'] + temp_fudge)
-            day_x.append(x_stats.at['min', 'temperature'] + temp_fudge)
-            day_x.append(x_stats.at['mean', 'temperature'] + temp_fudge)
-
-            nlags = 5
+            # Add lagged max peaks
             for i in range(nlags):
                 day_x.append(x_data.iloc[0][f'lag_{i}'])
 
@@ -172,8 +187,8 @@ def extract_features(data):
     # all_train_data = pd.concat(x_train)
     # stats = all_train_data.describe()
 
-    print("Extracting Train Set Features...\n")
-    features_x, features_y = get_stats(data)
+    print("Extracting Data Set Features...\n")
+    features_x, features_y = get_stats(data, y_value)
 
     return np.array(features_x), np.array(features_y)
 

@@ -84,7 +84,7 @@ def read_power_data(site, power_file, start, end):
     return df
 
 
-@pickle_jar(detect_changes=True, reload=False)
+@pickle_jar(detect_changes=True, reload=True)
 def load_data(site, power_file, site_info, start=None, end=None, thermal_info=True):
     power_data = read_power_data(site, power_file, start, end)
     power_data['mbh'] = float(site_info['lt_mbh']) + float(site_info['mt_mbh'])
