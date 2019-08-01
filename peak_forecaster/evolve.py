@@ -5,6 +5,10 @@ from tensorflow import keras
 import evaluate
 
 class NetworkEvolver:
+    """
+    Most of the GA code is adapted from
+    https://blog.coast.ai/lets-evolve-a-neural-network-with-a-genetic-algorithm-code-included-8809bece164
+    """
 
     def __init__(self, x_train, y_train, x_test, y_test):
         self.x_train = x_train
@@ -115,9 +119,10 @@ class NetworkEvolver:
         return network
 
     def evolve(self, pop):
-        """Evolve a population of networks.
-        Args:
-            pop (list): A list of network parameters
+        """
+
+        :param list pop:
+        :return:
         """
         # Get scores for each network.
         graded = [(evaluate.evaluate_basic(network,

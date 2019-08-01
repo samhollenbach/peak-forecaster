@@ -25,6 +25,7 @@ class Network(object):
             'loss_positive_scalar': 7.5,
         }
 
+        self.TRAIN_EPOCHS = 2000
         self.params = {**default_params, **params}
         self.model = None
 
@@ -102,7 +103,7 @@ class Network(object):
                       metrics=['mean_absolute_error', 'mean_squared_error'])
         return self.model
 
-    def train_model(self, model, train_x, train_y):
+    def train_model(self, train_x, train_y):
         # Display training progress by printing a single dot for each
         # completed epoch
         class ProgressBar(keras.callbacks.Callback):
@@ -132,19 +133,17 @@ class Network(object):
                           f" at epoch {self.current_epoch} / {self.total}")
                 print("\n\n")
 
-        EPOCHS = 2000
-
         # The patience parameter is the amount of epochs to check for
         # improvement
         early_stop = keras.callbacks.EarlyStopping(monitor='val_loss',
                                                    patience=500)
 
         print("\n##### Training Progress #####\n")
-        history = model.fit(
+        history = self.model.fit(
             train_x, train_y,
-            epochs=EPOCHS, verbose=0,
+            epochs=self.TRAIN_EPOCHS, verbose=0,
             validation_split=0.2,
-            callbacks=[early_stop, ProgressBar(EPOCHS)])
+            callbacks=[early_stop, ProgressBar(self.TRAIN_EPOCHS)])
 
 
         hist = pd.DataFrame(history.history)

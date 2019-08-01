@@ -26,7 +26,7 @@ def baseline_plot2(data):
     ax.plot(data['timestamp'], data['temperature'], label='Temperature')
     ax.set_title(f'{data.iloc[0]["date_site"]}')
     ax.legend(loc='upper right')
-    ax.set_ylim(-10, 400)
+    ax.set_ylim(-20, 500)
     plt.show()
 
 

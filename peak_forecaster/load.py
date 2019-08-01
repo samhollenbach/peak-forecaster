@@ -113,40 +113,15 @@ def load_all_data(sites, files=None):
             file = [os.path.join(path, i) for i in os.listdir(path) if
                     os.path.isfile(os.path.join(path, i)) and
                     site in i][0]
-            data.append(load_data(site, file, site_info[site]))
+            site_data = load_data(site, file, site_info[site])
+            site_data['site'] = site
+            data.append(site_data)
     else:
         for site, file in zip(sites, files):
             data.append(load_data(site, file, site_info[site]))
     data = pd.concat(data, sort=False)
     data.reset_index(inplace=True)
     return data
-
-@pickle_jar(reload=True)
-def train_test_split(data, size=0.8, seed=None):
-
-    x_train = []
-    x_test = []
-    y_train = []
-    y_test = []
-
-    day_data = [day for _, day in data.groupby('date_site')]
-
-    np.random.seed(seed)
-    rands = np.random.rand(len(day_data))
-
-    for i, day in enumerate(day_data):
-        y = day[['building_baseline', 'timestamp']]
-        x = day.drop('building_baseline', axis=1)
-
-        if rands[i] <= size:
-            x_train.append(x)
-            y_train.append(y)
-        else:
-            x_test.append(x)
-            y_test.append(y)
-
-    return x_train, y_train, x_test, y_test
-
 
 def get_thermal_config(site, start, end, lt_config_file):
     if site == 'WFROS' or site == 'WFROS':
