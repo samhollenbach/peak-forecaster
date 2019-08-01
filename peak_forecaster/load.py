@@ -1,10 +1,11 @@
 import pytz
 import pandas as pd
 import numpy as np
-from pickle_jar.pickle_jar import pickle_jar
-
+from functools import partial
 import os
 import csv
+from peak_forecaster import thermal_util
+from pickle_jar.pickle_jar import pickle_jar
 
 def read_power_data(site, power_file, start, end):
 
@@ -84,10 +85,15 @@ def read_power_data(site, power_file, start, end):
 
 
 @pickle_jar(detect_changes=True, reload=False)
-def load_data(site, power_file, site_info, start=None, end=None):
+def load_data(site, power_file, site_info, start=None, end=None, thermal_info=True):
     power_data = read_power_data(site, power_file, start, end)
-    power_data = power_data.drop('crs_baseline', axis=1)
     power_data['mbh'] = float(site_info['lt_mbh']) + float(site_info['mt_mbh'])
+    if thermal_info:
+        master_conf = get_thermal_config(site, start, end,
+                                         '../input/WM_LTSB_mass_and_SST_new.csv')
+        master_conf[
+            'MRC'] = power_data['crs_baseline'].max() + 2
+        power_data = thermal_util.add_thermal_info(power_data, master_conf)
     return power_data
 
 @pickle_jar(reload=True)
@@ -140,3 +146,37 @@ def train_test_split(data, size=0.8, seed=None):
             y_test.append(y)
 
     return x_train, y_train, x_test, y_test
+
+
+def get_thermal_config(site, start, end, lt_config_file):
+    if site == 'WFROS' or site == 'WFROS':
+        site_id = 'pge_e19_2019'
+    else:
+        site_id = 'pge_e19_2019'
+
+    lt_conf = get_lt_config(lt_config_file)
+    lt_capacity = lt_conf.loc[lt_conf.Store == site]['mass_derated'].iloc[0]
+    sst_max_f = lt_conf.loc[lt_conf.Store == site]['SST_max'].iloc[0]
+    sst_min_f = lt_conf.loc[lt_conf.Store == site]['SST_min'].iloc[0]
+    sst_mid_f = (sst_max_f + sst_min_f) / 2
+    cop_mid_sst = partial(thermal_util.master_cop_eq, thermal_util.farenheit_to_celsius(sst_mid_f))
+    cop_max_sst = partial(thermal_util.master_cop_eq, thermal_util.farenheit_to_celsius(sst_max_f))
+    master = {
+        'site': site,
+        'site_id': site_id,
+        'start': start,
+        'end': end,
+        'lt_config': lt_conf.loc[lt_conf.Store == site].to_dict(),
+        'lt_capacity': lt_capacity,
+        'sst_max_f': sst_max_f,
+        'sst_mid_f': sst_mid_f,
+        'sst_min_f': sst_min_f,
+        'cop_mid_sst': cop_mid_sst,
+        'cop_max_sst': cop_max_sst,
+        'sst_factor': 0.15,
+    }
+    return master
+
+def get_lt_config(config_file):
+    config_lt = pd.read_csv(config_file)
+    return config_lt

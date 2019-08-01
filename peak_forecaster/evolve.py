@@ -42,7 +42,7 @@ class NetworkEvolver:
         return {
             'layers': network_layers,
             'activation': self.choose_random('activation'),
-            'nodes': self.choose_random('nodes', network_layers),
+            'nodes': self.choose_random('nodes', network_layers=network_layers),
             'loss_positive_scalar': self.choose_random('loss_positive_scalar'),
             'optimizer': self.choose_random('optimizer'),
             'learning_rate': self.choose_random('learning_rate')
@@ -99,11 +99,18 @@ class NetworkEvolver:
         """
         # Choose a random key.
         mutation = random.choice(list(self.choices.keys()))
-        layers = None
-        if mutation == 'nodes':
-            layers = network.params['layers']
         # Mutate one of the params.
-        network.params[mutation] = self.choose_random(mutation, network_layers=layers)
+        network_layers = network.params['layers']
+        nodes = network.params['nodes']
+        if mutation == 'layers':
+            new_network_layers = random.choice(self.choices['layers'])
+            if new_network_layers > network_layers:
+                network.params['nodes'] = nodes[:] + [random.choice(self.choices['nodes']) for _ in range(new_network_layers - network_layers)]
+            elif new_network_layers < network_layers:
+                network.params['nodes'] = nodes[:new_network_layers]
+            network.params['layers'] = new_network_layers
+        else:
+            network.params[mutation] = self.choose_random(mutation, network_layers=network_layers)
 
         return network
 
@@ -121,7 +128,7 @@ class NetworkEvolver:
 
         # Sort on the scores.
         graded = [x[1] for x in
-                  sorted(graded, key=lambda x: x[0], reverse=True)]
+                  sorted(graded, key=lambda x: x[0], reverse=False)]
 
         # Get the number we want to keep for the next gen.
         retain_length = int(len(graded) * self.retain)

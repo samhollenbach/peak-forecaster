@@ -26,6 +26,7 @@ class Network(object):
         }
 
         self.params = {**default_params, **params}
+        self.model = None
 
 
     def build_layers(self, input_shape, output_shape):
@@ -81,7 +82,7 @@ class Network(object):
 
     def build_model(self, input_shape, output_shape):
 
-        model = keras.Sequential(self.build_layers(input_shape, output_shape))
+        self.model = keras.Sequential(self.build_layers(input_shape, output_shape))
         # model = keras.Sequential([
         #     layers.Dense(16, activation='elu', input_shape=(input_shape,),
         #                  kernel_regularizer=regularizers.l2(0.03)),
@@ -96,18 +97,18 @@ class Network(object):
         # mean_squared_error
         # logcosh
         # mean_squared_logarithmic_error
-        model.compile(loss=self.peak_loss,
+        self.model.compile(loss=self.peak_loss,
                       optimizer=optimizer,
                       metrics=['mean_absolute_error', 'mean_squared_error'])
-        return model
+        return self.model
 
-    def train_model(self, model, train_x, train_y, test_x, test_y):
+    def train_model(self, model, train_x, train_y):
         # Display training progress by printing a single dot for each
         # completed epoch
         class ProgressBar(keras.callbacks.Callback):
             def __init__(self, total):
                 self.total = total
-                self.bar_length = 80
+                self.bar_length = 64
                 self.current_epoch = 1
 
             def create_bar(self, cur):
@@ -126,12 +127,12 @@ class Network(object):
 
             def on_train_end(self, logs=None):
                 self.create_bar(self.current_epoch)
-                print("\n\n")
                 if self.current_epoch < self.total:
                     print(f"\nNOTICE: Training stopped early"
-                          f" at epoch {self.current_epoch} / {self.total}\n")
+                          f" at epoch {self.current_epoch} / {self.total}")
+                print("\n\n")
 
-        EPOCHS = 1500
+        EPOCHS = 2000
 
         # The patience parameter is the amount of epochs to check for
         # improvement

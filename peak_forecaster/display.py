@@ -12,7 +12,25 @@ def baseline_plot(x_data, y_data, prediction):
     plt.show()
 
 
-def lt_plot(site, data, t1=None, t2=None, max_peak=None):
+def baseline_plot2(data):
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+    ax.plot(data['timestamp'], data['building_baseline'], label='Baseline')
+    ax.plot(data['timestamp'], data['offsets'], label='Offset')
+    ax.plot(data['timestamp'], data['target'], label='Target', alpha=0.6)
+    ax.plot(data['timestamp'], data['soc'], '--', label='SOC')
+    ax.plot(data['timestamp'], data['threshold_old'], label='Threshold Old')
+    ax.plot(data['timestamp'], data['threshold'], label='Threshold New')
+    ax.plot(data['timestamp'], data['discharge_limits'], label='Discharge Limit')
+    ax.plot(data['timestamp'], -data['charge_limits'], label='Charge Limit')
+    ax.plot(data['timestamp'], data['temperature'], label='Temperature')
+    ax.set_title(f'{data.iloc[0]["date_site"]}')
+    ax.legend(loc='upper right')
+    ax.set_ylim(-10, 400)
+    plt.show()
+
+
+def lt_plot(site, data, t1=None, t2=None, max_peak=None, show=False):
     if t1 is None:
         t1 = data.index[0]
     if t2 is None:
@@ -24,8 +42,12 @@ def lt_plot(site, data, t1=None, t2=None, max_peak=None):
     # plotting power related graphs on first y axis
     ln1 = ax.plot(data.offsets[t1:t2],
                   label="Offset")
-    ln2 = ax.plot(data.baseline[t1:t2],
-                  label='Building Power')
+    try:
+        ln2 = ax.plot(data.baseline[t1:t2],
+                      label='Building Power')
+    except AttributeError:
+        ln2 = ax.plot(data.building_baseline[t1:t2],
+                      label='Building Power')
     ln3 = ax.plot(data.load_values[t1:t2],
                   label='New Building Power')
     ln4 = ax.plot(-data.charge_limits[t1:t2],
@@ -58,6 +80,9 @@ def lt_plot(site, data, t1=None, t2=None, max_peak=None):
     ax.legend(lns, labs, loc='best')
     if max_peak:
         ax2.set_ylim(-14, max_peak)
+
+    if show:
+        plt.show()
     return ax
 
 
