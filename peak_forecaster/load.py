@@ -80,6 +80,8 @@ def read_power_data(site, power_file, start, end):
         df['crs_baseline'] = df['crs_new'].copy()
         df.drop('crs_new', axis=1, inplace=True)
 
+    df['baseline_no_crs'] = df['building_baseline'] - df['crs_baseline']
+
     df.reset_index(drop=True, inplace=True)
     return df
 

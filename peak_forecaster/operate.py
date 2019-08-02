@@ -85,8 +85,9 @@ class StandardOperator:
             pred = predictions[i][0]
             if predictions is not None:
                 day['peak_prediction'] = pred
+            pred_crs = crs_predictions[i][0]
             if crs_predictions is not None:
-                day['crs_prediction'] = crs_predictions[i][0]
+                day['crs_prediction'] = pred_crs
 
             # What the predicted threshold was for display
             day['threshold_old'] = thresholds[i]
@@ -94,23 +95,30 @@ class StandardOperator:
             # What the actual followed threshold is for action
             day['threshold'] = highest_threshold
 
-            if pred < highest_threshold:
-                dif = (highest_threshold - pred) / pred
+            # Shrink activity window if predicted threshold
+            # is significantly below the current threshold
+            time_start_corrected = time_start
+            threshold_buffer = pred - (pred_crs/2)
+            if threshold_buffer < highest_threshold:
+                dif = (highest_threshold - threshold_buffer) / highest_threshold
                 h = int(time_start.hour)
                 m = int(time_start.minute)
-                h_add = np.floor(10 * dif)
-                m_add = np.floor(60 * (10 * dif - h_add))
-                time_start = datetime.time(h+h_add, m+m_add)
+                t = h * 60 + m
+                t += np.floor(2000 * dif)
+                t = min(t, 20 * 60)
+                h = np.floor(t / 60)
+                m = np.floor(t - (h * 60))
+                time_start_corrected = datetime.time(int(h), int(m))
 
-            print(time_start)
+            print(time_start_corrected)
 
             # Run operation
             for index, row in day.iterrows():
                 ts = row['timestamp']
-                day.at[index, 'threshold'] = highest_threshold
 
+                day.at[index, 'threshold'] = highest_threshold
                 # If not in testing window
-                if ts.time() < time_start or ts.time() > time_end:
+                if ts.time() < time_start_corrected or ts.time() > time_end:
                     continue
 
                 current_load = row['building_baseline']
