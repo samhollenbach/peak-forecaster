@@ -18,7 +18,7 @@ def add_cops(df, config):
     # ADD COP's according to master equation at mid point SST
     df = df.assign(oat_c=df.temperature.apply(farenheit_to_celsius))
     # USE COP AT MID SST & ITERATE
-    ## TODO: USING OPPOSITE DISCHARGE FOR NOW.... FIX
+    ## TODO: USING OPPOSITE DISCHARGE FOR NOW.... IS THIS RIGHT?
     df = df.assign(cop_charge=df.oat_c.apply(config['cop_max_sst']))
     # USE COP AT MAX SST
     return df.assign(cop_discharge=df.oat_c.apply(config['cop_max_sst']))

@@ -14,6 +14,13 @@ for i, day in enumerate(days_of_week):
     encoding[i] = 1.0
     day_of_week_encoding[day] = tuple(encoding)
 
+months = 12
+months_one_hot = []
+for i in range(months):
+    encoding = [0.0] * months
+    encoding[i] = 1.0
+    months_one_hot.append(tuple(encoding))
+
 
 def split_x_y(data, y_value='building_baseline'):
     x = []
@@ -156,11 +163,13 @@ def extract_features(data, y_value='building_baseline', nlags=0):
             day_x.append(h)
 
             # Add encoded month
-            month_scaled = int(x_data.iloc[0]['month']) / 12.0
-            month_components = (
-            np.sin(np.pi * month_scaled), np.cos(np.pi * month_scaled))
-            # month_components = (np.sin(month_scaled),)
-            day_x.extend(month_components)
+            m = int(x_data.iloc[0]['month'])
+            day_x.extend(months_one_hot[m-1])
+            # month_scaled = int(x_data.iloc[0]['month']) / 12.0
+            # month_components = (
+            # np.sin(np.pi * month_scaled), np.cos(np.pi * month_scaled))
+            # # month_components = (np.sin(month_scaled),)
+            # day_x.extend(month_components)
 
             # Add encoded day of week
             dow = x_data.iloc[0]['day_of_week']

@@ -101,16 +101,15 @@ class StandardOperator:
             threshold_buffer = pred - (pred_crs/2)
             if threshold_buffer < highest_threshold:
                 dif = (highest_threshold - threshold_buffer) / highest_threshold
-                h = int(time_start.hour)
-                m = int(time_start.minute)
+                h = time_start.hour
+                m = time_start.minute
                 t = h * 60 + m
-                t += np.floor(2000 * dif)
+                t += np.floor(4000 * dif)
                 t = min(t, 20 * 60)
                 h = np.floor(t / 60)
                 m = np.floor(t - (h * 60))
                 time_start_corrected = datetime.time(int(h), int(m))
 
-            print(time_start_corrected)
 
             # Run operation
             for index, row in day.iterrows():
