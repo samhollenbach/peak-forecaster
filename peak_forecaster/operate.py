@@ -1,3 +1,4 @@
+import datetime
 import numpy as np
 from tariff.bill_calculator import BillCalculator
 import pandas as pd
@@ -15,7 +16,8 @@ class StandardOperator:
         self.site = site
         self.start = pd.to_datetime(start)
         self.end = pd.to_datetime(end)
-        self.lt_capacity = 3600
+        # TODO: Change from site to site
+        self.lt_capacity = 155.72
         self.tank_min = 0
         self.bill_calculator = BillCalculator('pge')
 
@@ -80,8 +82,9 @@ class StandardOperator:
                     highest_threshold = thresholds[i]
 
             # Add predictions to data for display
+            pred = predictions[i][0]
             if predictions is not None:
-                day['peak_prediction'] = predictions[i][0]
+                day['peak_prediction'] = pred
             if crs_predictions is not None:
                 day['crs_prediction'] = crs_predictions[i][0]
 
@@ -90,6 +93,16 @@ class StandardOperator:
 
             # What the actual followed threshold is for action
             day['threshold'] = highest_threshold
+
+            if pred < highest_threshold:
+                dif = (highest_threshold - pred) / pred
+                h = int(time_start.hour)
+                m = int(time_start.minute)
+                h_add = np.floor(10 * dif)
+                m_add = np.floor(60 * (10 * dif - h_add))
+                time_start = datetime.time(h+h_add, m+m_add)
+
+            print(time_start)
 
             # Run operation
             for index, row in day.iterrows():

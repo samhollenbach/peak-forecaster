@@ -187,7 +187,7 @@ def extract_features(data, y_value='building_baseline', nlags=0):
     # all_train_data = pd.concat(x_train)
     # stats = all_train_data.describe()
 
-    print("Extracting Data Set Features...\n")
+    print("Extracting Features...\n")
     features_x, features_y = get_stats(data, y_value)
 
     return np.array(features_x), np.array(features_y)

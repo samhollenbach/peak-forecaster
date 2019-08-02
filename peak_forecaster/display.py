@@ -29,9 +29,9 @@ def baseline_plot2(data, savings=None):
         ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
     title = f'{data.iloc[0]["date_site"]}'
     if savings:
-        title = f'{title} - Savings: ${savings:.2f}'
+        title = f'{title} - Savings: ${savings[0]:.2f} (D: ${savings[1]}, E: $P{savings[2]})'
     ax.set_title(title)
-    ax.legend(loc='upper right')
+    ax.legend(loc='lower right')
     ax.set_ylim(None, None)
 
     plt.show()
