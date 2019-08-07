@@ -52,6 +52,8 @@ def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_d
         if test_end_date > data.iloc[-1][timestamp_column].date():
             raise ValueError("Test end date is after the end of the time series data")
 
+    data = data.copy()
+
     # Output lists
     train = []
     test = []
@@ -102,7 +104,6 @@ def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_d
 
 
 def extract_features(data, y_value='building_baseline', nlags=0):
-
     days_of_week = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
     encoding_base = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     day_of_week_encoding = {}
@@ -115,8 +116,10 @@ def extract_features(data, y_value='building_baseline', nlags=0):
         features_x = []
         features_y = []
 
+        print("Splitting Train / Test Sets\n")
         x, y = split_x_y(data, y_value=y_value)
 
+        print("Extracting Features...\n")
         for x_data, y_data in zip(x, y):
             day_x = []
             day_y = []
@@ -196,7 +199,6 @@ def extract_features(data, y_value='building_baseline', nlags=0):
     # all_train_data = pd.concat(x_train)
     # stats = all_train_data.describe()
 
-    print("Extracting Features...\n")
     features_x, features_y = get_stats(data, y_value)
 
     return np.array(features_x), np.array(features_y)

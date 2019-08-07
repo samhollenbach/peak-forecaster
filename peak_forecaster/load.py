@@ -86,8 +86,23 @@ def read_power_data(site, power_file, start, end):
     return df
 
 
+def get_site_info():
+    site_info = {}
+    with open('../input/site_info.csv', 'r') as r:
+        reader = csv.DictReader(r)
+        for row in reader:
+            site_info[row['site']] = {k: v for k, v in row.items() if
+                                      k != 'site'}
+    return site_info
+
 @pickle_jar(detect_changes=True, reload=True)
-def load_data(site, power_file, site_info, start=None, end=None, thermal_info=True):
+def load_data(site, site_info, power_file=None, start=None, end=None, thermal_info=True):
+    if power_file is None:
+        path = '../input/'
+        power_file = [os.path.join(path, i) for i in os.listdir(path) if
+                os.path.isfile(os.path.join(path, i)) and
+                site in i][0]
+
     power_data = read_power_data(site, power_file, start, end)
     power_data['mbh'] = float(site_info['lt_mbh']) + float(site_info['mt_mbh'])
     if thermal_info:
@@ -95,32 +110,28 @@ def load_data(site, power_file, site_info, start=None, end=None, thermal_info=Tr
                                          '../input/WM_LTSB_mass_and_SST_new.csv')
         master_conf[
             'MRC'] = power_data['crs_baseline'].max() + 2
+
+        master_conf['optimizer_config']['MRC'] = master_conf['MRC']
         power_data = thermal_util.add_thermal_info(power_data, master_conf)
+        return power_data, master_conf
     return power_data
 
 @pickle_jar(reload=True)
 def load_all_data(sites, files=None):
     data = []
 
-    site_info = {}
-
-    with open('../input/site_info.csv', 'r') as r:
-        reader = csv.DictReader(r)
-        for row in reader:
-            site_info[row['site']] = {k: v for k, v in row.items() if k != 'site'}
+    site_info = get_site_info()
 
     if files is None:
         for site in sites:
-            path = '../input/'
-            file = [os.path.join(path, i) for i in os.listdir(path) if
-                    os.path.isfile(os.path.join(path, i)) and
-                    site in i][0]
-            site_data = load_data(site, file, site_info[site])
+
+            site_data, _ = load_data(site, site_info[site])
             site_data['site'] = site
             data.append(site_data)
     else:
         for site, file in zip(sites, files):
-            data.append(load_data(site, file, site_info[site]))
+            dat, _ = load_data(site, site_info[site], power_file=file)
+            data.append(dat)
     data = pd.concat(data, sort=False)
     data.reset_index(inplace=True)
     return data
@@ -143,6 +154,8 @@ def get_thermal_config(site, start, end, lt_config_file):
         'site_id': site_id,
         'start': start,
         'end': end,
+        'optimizer_config': get_optimizer_config(site_id, start, end,
+                                                 lt_capacity),
         'lt_config': lt_conf.loc[lt_conf.Store == site].to_dict(),
         'lt_capacity': lt_capacity,
         'sst_max_f': sst_max_f,
@@ -153,6 +166,46 @@ def get_thermal_config(site, start, end, lt_config_file):
         'sst_factor': 0.15,
     }
     return master
+
+
+def get_optimizer_config(site_id, start, end, lt_capacity):
+    config = {
+        "timezone": "US/Pacific",
+        "site_id": site_id,
+        "start": start,
+        "end": end,
+        "MDL": 1000,
+        "MCL": 1000,
+        "min_charge_offset": 5,
+        "min_discharge_offset": 5,
+        # "RTE_setpoint": 0.65,
+        "RB_capacity": lt_capacity,
+        "M": 1000,
+        "SOC_initial": 0,
+        "cop_dchg_coefficients": [0],  # Already provided in timeseries data
+        "cop_chg_coefficients": [0],  # Already provided in timeseries data
+        "constraints": {
+            "time_transition": False,
+            "minimum_charge_offset": False,
+            "minimum_discharge_offset": False,
+            "chg_limit_curve": False,
+            "dchg_limit_curve": False,
+            "fixed_rte": False
+        },
+        "outputs": {
+            "timestamp": True,
+            "baseline": True,
+            "offsets": True,
+            "load_values": True,
+            "soc": True,
+            "charge_limits": True,
+            "discharge_limits": True,
+            "cop_dchg": True,
+            "cop_chg": True,
+            "temperature": True
+        }
+    }
+    return config
 
 def get_lt_config(config_file):
     config_lt = pd.read_csv(config_file)

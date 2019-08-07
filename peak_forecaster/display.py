@@ -13,28 +13,37 @@ def baseline_plot(x_data, y_data, prediction):
     plt.show()
 
 
-def baseline_plot2(data, savings=None):
+def baseline_plot2(data, title=None, savings=None, save=False):
 
     fig, ax = plt.subplots(figsize=(14, 8))
     ax.plot(data['timestamp'], data['building_baseline'], label='Baseline')
     ax.plot(data['timestamp'], data['offsets'], label='Offset')
     ax.plot(data['timestamp'], data['target'], label='Target', alpha=0.6)
     ax.plot(data['timestamp'], data['soc'], '--', label='SOC')
-    ax.plot(data['timestamp'], data['threshold_old'], label='Threshold Old')
-    ax.plot(data['timestamp'], data['threshold'], label='Threshold New')
+    if 'threshold_old' in data.columns:
+        ax.plot(data['timestamp'], data['threshold_old'], label='Threshold Old')
+    if 'threshold' in data.columns:
+        ax.plot(data['timestamp'], data['threshold'], label='Threshold New')
     ax.plot(data['timestamp'], data['discharge_limits'], label='Discharge Limit')
     ax.plot(data['timestamp'], -data['charge_limits'], label='Charge Limit')
     ax.plot(data['timestamp'], data['temperature'], label='Temperature')
     if 'peak_prediction' in data.columns:
         ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
-    title = f'{data.iloc[0]["date_site"]}'
+
+    if title is None and 'date_site' in data.columns:
+        title = f'{data.iloc[0]["date_site"]}'
+    elif title is None:
+        title = "No Title Set"
     if savings:
-        title = f'{title} - Savings: ${savings[0]:.2f} (D: ${savings[1]:.2f}, E: $P{savings[2]:.2f})'
+        title = f'{title} - Savings: ${savings[0]:.2f} (D: ${savings[1]:.2f}, E: ${savings[2]:.2f})'
     ax.set_title(title)
     ax.legend(loc='lower right')
     ax.set_ylim(None, None)
 
-    plt.show()
+    if save:
+        plt.savefig(f"output/{title}.png")
+    else:
+        plt.show()
 
 
 def lt_plot(site, data, t1=None, t2=None, max_peak=None, show=False):
@@ -67,7 +76,7 @@ def lt_plot(site, data, t1=None, t2=None, max_peak=None, show=False):
     ax.set_xlabel('Time period')
     ax.set_ylabel('Power in KW')
 
-    start, end = ax.get_xlim()
+    # start, end = ax.get_xlim()
     # ax.set_xticks(np.arange(start, end, 8))
     # ax.set_xticklabels(sv)
     # plt.xticks(np.arange(start+33.55, end+33.55, 16), sv, rotation=90);

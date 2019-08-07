@@ -22,6 +22,7 @@ setup(
             'sklearn',
             'seaborn',
             'tensorflow',
+            'optimizer-engine',
         ],
     test_suite='nose.collector',
     tests_require=tests_require,
