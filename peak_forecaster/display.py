@@ -30,10 +30,14 @@ def baseline_plot2(data, title=None, savings=None, save=False):
     if 'peak_prediction' in data.columns:
         ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
 
+    ax.axhline(0, linestyle='--', c='black', alpha=0.4)
+    ax.set_ylabel("Power (kW)")
+    ax.set_xlabel("Time")
+
     if title is None and 'date_site' in data.columns:
         title = f'{data.iloc[0]["date_site"]}'
     elif title is None:
-        title = "No Title Set"
+        title = "Untitled"
     if savings:
         title = f'{title} - Savings: ${savings[0]:.2f} (D: ${savings[1]:.2f}, E: ${savings[2]:.2f})'
     ax.set_title(title)

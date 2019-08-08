@@ -27,6 +27,10 @@ def split_x_y(data, y_value='building_baseline'):
     y = []
     y_list = list({y_value, 'building_baseline', 'timestamp'})
 
+    if isinstance(data, pd.DataFrame):
+        data = data.copy()
+        data = group_data(data)
+
     for day in data:
         x.append(day.copy().drop(y_value, axis=1))
         y.append(day[y_list])
@@ -40,7 +44,7 @@ def group_data(data, by='date_site'):
 
 # @pickle_jar(reload=False)
 def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_date=None,
-                     timestamp_column='timestamp'):
+                     timestamp_column='timestamp', return_is_test=False):
 
     # Check for test set time bounds
     # TODO: Add support for multi site runs with test_start/end
@@ -57,6 +61,7 @@ def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_d
     # Output lists
     train = []
     test = []
+    is_test = []
 
     # Group data by day
     daily_data = group_data(data)
@@ -91,15 +96,20 @@ def train_test_split(data, size=0.2, seed=None, test_start_date=None, test_end_d
         if test_start_date is None and test_end_date is None:
             if rands[i] <= size:
                 test.append(day)
+                is_test.append(True)
             else:
                 train.append(day)
+                is_test.append(False)
         else:
             date = day.iloc[0][timestamp_column].date()
             if date >= test_start_date and date <= test_end_date:
                 test.append(day)
+                is_test.append(True)
             else:
                 train.append(day)
-
+                is_test.append(False)
+    if return_is_test:
+        return train, test, is_test
     return train, test
 
 
@@ -198,7 +208,7 @@ def extract_features(data, y_value='building_baseline', nlags=0):
 
     # all_train_data = pd.concat(x_train)
     # stats = all_train_data.describe()
-
+    data = data.copy()
     features_x, features_y = get_stats(data, y_value)
 
     return np.array(features_x), np.array(features_y)

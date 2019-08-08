@@ -45,7 +45,9 @@ class StandardOperator:
     def run_standard_operation(self, time_start, time_end, data,
                                predictions=None, crs_predictions=None,
                                thresholds=None, threshold_matching=True,
-                               dynamic_precool=True, threshold_derating=0.7):
+                               dynamic_precool=True, threshold_derating=0.7,
+                               reset_soc=False, start_soc=0.5,
+                               start_nth_threshold=None):
         """
 
         :param Time time_start:
@@ -65,7 +67,7 @@ class StandardOperator:
         elif thresholds is None:
             thresholds = [p[0] - (crs[0] * threshold_derating) for p, crs in zip(predictions, crs_predictions)]
 
-        highest_threshold = thresholds[0]
+
 
         # Add necessary columns and group data by days if needed
         daily_data = self.prepare_data(data)
@@ -73,10 +75,18 @@ class StandardOperator:
         if len(daily_data) != len(thresholds):
             raise ValueError("Number of days in data and amount of thresholds do not match")
 
+        highest_threshold = thresholds[0]
+
+        if start_nth_threshold is not None:
+            sorted_thresholds = sorted(thresholds, reverse=True)
+            highest_threshold = sorted_thresholds[start_nth_threshold-1]
 
         new_day_data = []
+        current_soc = start_soc * self.lt_capacity
         for i, day in enumerate(daily_data):
-            current_soc = 0
+
+            if reset_soc:
+                current_soc = 0
 
             # Follow the highest threshold set
             # even if we haven't reached a target that high
@@ -120,15 +130,11 @@ class StandardOperator:
             for index, row in day.iterrows():
                 ts = row['timestamp']
 
-
+                # Apply heat leak even if not operating
+                current_soc = self.apply_heat_leak(current_soc, row['heat_leak'])
+                day.at[index, 'soc'] = current_soc
 
                 day.at[index, 'threshold'] = highest_threshold
-
-                # If not in testing window
-                if ts.time() < time_start_corrected or ts.time() > time_end:
-                    if row['target'] > highest_threshold:
-                        highest_threshold = row['target']
-                    continue
 
                 current_load = row['building_baseline']
 
@@ -140,8 +146,18 @@ class StandardOperator:
                     row['discharge_limits'],
                     row['cop_charge'],
                     row['cop_discharge'],
-                    row['heat_leak'],
                     highest_threshold)
+
+
+                # If not in testing window
+                if (ts.time() < time_start_corrected or ts.time() > time_end):
+                    # Disable charging outside active window if tank half full
+                    if offset < 0 and current_soc > self.lt_capacity/2:
+                        if row['target'] > highest_threshold:
+                            highest_threshold = row['target']
+                        continue
+
+
                 day.at[index, 'soc'] = soc
                 day.at[index, 'offsets'] = offset
                 target = current_load - offset
@@ -156,29 +172,29 @@ class StandardOperator:
         new_data = pd.concat(new_day_data)
         return new_data
 
+    def apply_heat_leak(self, current_soc, heat_leak):
+        next_soc = current_soc - (heat_leak * current_soc / 4.0)
+        if next_soc < 0:
+            next_soc = 0
+        return next_soc
 
     def get_next_soc_offset(self, current_load, current_soc, chg_limit, dchg_limit,
-                            chg_cop, dchg_cop, heat_leak, threshold):
+                            chg_cop, dchg_cop, threshold):
         threshold_offset = current_load - threshold
-
-        # FOR HEAT LEAK BEFORE
-        current_soc -= heat_leak
-
-        # TODO: Check if COPs need the factor of 4
 
         if threshold_offset == 0:  # DMT mode
             offset = 0
             soc = current_soc
         elif threshold_offset < 0:  # CHG mode
             offset = max(threshold_offset, -chg_limit)
-            soc = current_soc - (offset * chg_cop) / 4
+            soc = current_soc - (offset * chg_cop / 4.0)
             if soc > self.lt_capacity:
-                offset = (current_soc - self.lt_capacity) / chg_cop * 4
+                offset = (current_soc - self.lt_capacity) / chg_cop * 4.0
                 soc = self.lt_capacity
         else:  # DCHG mode
             offset = min(threshold_offset, dchg_limit)
-            soc = current_soc - (offset * dchg_cop) / 4
+            soc = current_soc - (offset * dchg_cop / 4.0)
             if soc < self.tank_min:
-                offset = (current_soc - self.tank_min) / dchg_cop * 4
+                offset = (current_soc - self.tank_min) / dchg_cop * 4.0
                 soc = self.tank_min
         return soc, offset
