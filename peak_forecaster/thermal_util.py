@@ -1,6 +1,10 @@
 
-def farenheit_to_celsius(celsius):
+def celsius_to_fahrenheit(celsius):
     return (celsius * 9/5) + 32
+
+
+def fahrenheit_to_celsius(fahrenheit):
+    return (fahrenheit - 32) * 5/9
 
 
 def master_cop_eq(sst, oat):
@@ -16,7 +20,8 @@ def add_thermal_info(power_data, config):
 
 def add_cops(df, config):
     # ADD COP's according to master equation at mid point SST
-    df = df.assign(oat_c=df.temperature.apply(farenheit_to_celsius))
+
+    df = df.assign(oat_c=df.temperature.apply(fahrenheit_to_celsius))
     # USE COP AT MID SST & ITERATE
     ## TODO: USING OPPOSITE DISCHARGE FOR NOW.... IS THIS RIGHT?
     df = df.assign(cop_charge=df.oat_c.apply(config['cop_max_sst']))
@@ -38,8 +43,8 @@ def add_heat_leak(df, config):
 
 
 def get_sst(soc, config):
-    sst_min_c = farenheit_to_celsius(config['sst_min_f'])
-    sst_max_c = farenheit_to_celsius(config['sst_max_f'])
+    sst_min_c = fahrenheit_to_celsius(config['sst_min_f'])
+    sst_max_c = fahrenheit_to_celsius(config['sst_max_f'])
     m = (sst_max_c - sst_min_c) / (0 - config['lt_capacity'])
     c = sst_min_c - m * config['lt_capacity']
     return soc.apply(lambda x: m * x + c)
@@ -56,7 +61,7 @@ def get_charge_cop(sst_list, oat_list):
 
 def get_heat_leak(df, config):
     df = df.assign(
-        oat_c=df.temperature.apply(lambda t: farenheit_to_celsius(t)))
+        oat_c=df.temperature.apply(lambda t: fahrenheit_to_celsius(t)))
     cop_heat_leak = df.oat_c.apply(lambda v: config['cop_max_sst'](v))
     heat_load = df.discharge_limits * cop_heat_leak
     heat_leak = heat_load * config['sst_factor'] / config['lt_capacity']

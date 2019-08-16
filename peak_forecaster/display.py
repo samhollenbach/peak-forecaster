@@ -13,22 +13,55 @@ def baseline_plot(x_data, y_data, prediction):
     plt.show()
 
 
-def baseline_plot2(data, title=None, savings=None, save=False):
+def baseline_plot2(data, time_col='timestamp', title=None, savings=None, save=False):
 
     fig, ax = plt.subplots(figsize=(14, 8))
-    ax.plot(data['timestamp'], data['building_baseline'], label='Baseline')
-    ax.plot(data['timestamp'], data['offsets'], label='Offset')
-    ax.plot(data['timestamp'], data['target'], label='Target', alpha=0.6)
-    ax.plot(data['timestamp'], data['soc'], '--', label='SOC')
-    if 'threshold_old' in data.columns:
-        ax.plot(data['timestamp'], data['threshold_old'], label='Threshold Old')
-    if 'threshold' in data.columns:
-        ax.plot(data['timestamp'], data['threshold'], label='Threshold New')
-    ax.plot(data['timestamp'], data['discharge_limits'], label='Discharge Limit')
-    ax.plot(data['timestamp'], -data['charge_limits'], label='Charge Limit')
-    ax.plot(data['timestamp'], data['temperature'], label='Temperature')
-    if 'peak_prediction' in data.columns:
-        ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
+
+    fields = ['building_baseline', 'offsets', 'target', 'soc', 'threshold_old',
+              'threshold', 'discharge_limits', 'charge_limits', 'temperature',
+              'peak_prediction']
+
+
+
+
+    for field in fields:
+        alpha = 1.0
+        if field == 'target':
+            alpha = 0.6
+        ls = '-'
+        if field == 'soc':
+            ls = '--'
+        if field in data.columns:
+            data_y = data[field]
+            if field == 'charge_limits':
+                data_y = -data_y
+
+            if isinstance(data.index, pd.DatetimeIndex):
+                ax.plot(data_y, alpha=alpha, ls=ls,
+                        label=' '.join(field.split('_')).capitalize())
+                ax.xaxis_date(tz=data.index[0].tzinfo)
+            else:
+                ax.plot(data[time_col], data_y, alpha=alpha, ls=ls,
+                    label=' '.join(field.split('_')).capitalize())
+
+    #
+    #
+    # ax.plot(data['timestamp'], data['building_baseline'], label='Baseline')
+    # ax.plot(data['timestamp'], data['offsets'], label='Offset')
+    # ax.plot(data['timestamp'], data['target'], label='Target', alpha=0.6)
+    # ax.plot(data['timestamp'], data['soc'], '--', label='SOC')
+    # if 'threshold_old' in data.columns:
+    #     ax.plot(data['timestamp'], data['threshold_old'], label='Threshold Old')
+    # if 'threshold' in data.columns:
+    #     ax.plot(data['timestamp'], data['threshold'], label='Threshold New')
+    # ax.plot(data['timestamp'], data['discharge_limits'], label='Discharge Limit')
+    # ax.plot(data['timestamp'], -data['charge_limits'], label='Charge Limit')
+    # ax.plot(data['timestamp'], data['temperature'], label='Temperature')
+    # if 'peak_prediction' in data.columns:
+    #     ax.plot(data['timestamp'], data['peak_prediction'], label='Predicted Peaks')
+    #
+
+
 
     ax.axhline(0, linestyle='--', c='black', alpha=0.4)
     ax.set_ylabel("Power (kW)")

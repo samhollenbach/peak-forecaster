@@ -16,9 +16,12 @@ class StandardOperator:
         self.site = site
         self.start = pd.to_datetime(start)
         self.end = pd.to_datetime(end)
-        # TODO: Change from site to site
 
-        cap_info = pd.read_csv('../input/WM_LTSB_mass_and_SST_new.csv')
+        if site.startswith('WF'):
+            site_file = '../input/WF_LTSB_mass_and_SST.csv'
+        else:
+            site_file = '../input/WM_LTSB_mass_and_SST_new.csv'
+        cap_info = pd.read_csv(site_file)
         cap = cap_info.loc[cap_info['Store'] == site]['mass_total']
         self.lt_capacity = float(cap)
         self.tank_min = 0
@@ -167,6 +170,12 @@ class StandardOperator:
                     highest_threshold = target
 
                 current_soc = soc
+
+                if '06-10' in row['date']:
+                    print(offset)
+                    print(target)
+                    print(current_soc)
+                    print(row)
 
             new_day_data.append(day)
         new_data = pd.concat(new_day_data)

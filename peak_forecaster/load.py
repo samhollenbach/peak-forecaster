@@ -1,21 +1,27 @@
 import pytz
 import pandas as pd
+import pickle
 import numpy as np
 from functools import partial
 import os
 import csv
 from peak_forecaster import thermal_util
+from tariff import Tariff
 from pickle_jar.pickle_jar import pickle_jar
 
 def read_power_data(site, power_file, start, end):
 
     target_tz = pytz.timezone('US/Pacific')
 
-
     try:
-        df = pd.read_csv(power_file, parse_dates=['timestamp'])
-    except ValueError:
-        df = pd.read_excel(power_file, parse_dates=['timestamp'])
+        with open(power_file, 'rb') as r:
+            df = pickle.load(r)
+    except:
+        try:
+            df = pd.read_csv(power_file, parse_dates=['timestamp'])
+        except ValueError:
+            df = pd.read_excel(power_file, parse_dates=['timestamp'])
+
 
     df['timestamp'] = df['timestamp'].apply(
         lambda t: t.replace(tzinfo=target_tz))
@@ -42,13 +48,19 @@ def read_power_data(site, power_file, start, end):
             end = df.iloc[-1]['timestamp']
 
     df = df[(df.timestamp >= start) & (df.timestamp <= end)]
+
+
+
+
     timestamps = pd.date_range(start, end, freq='15T', tz=target_tz)
 
     try:
         df['timestamp'] = timestamps
     except ValueError:
         df['timestamp'] = timestamps[:-4]
-    df.set_index('timestamp', drop=True, inplace=True)
+
+
+    df.set_index('timestamp', inplace=True)
 
     df = df.assign(
         year_month=df.index.to_series(keep_tz=True).apply(
@@ -70,19 +82,35 @@ def read_power_data(site, power_file, start, end):
 
     df['timestamp'] = df.index.to_series(keep_tz=True)
 
+    t = Tariff('pge')
+    df = t.apply_period(df, 'timestamp')
+
+
     if 'temperature' not in df.columns and 'dbt' in df.columns:
         df['temperature'] = df['dbt'].copy()
         df.drop('dbt', axis=1, inplace=True)
 
-    df['temperature'] =  df['temperature'].apply(lambda t: (t - 32) * 5/9)
+    if df['temperature'].max() < 60:
+        df['temperature'] =  df['temperature'].apply(thermal_util.celsius_to_fahrenheit)
 
     if 'crs_new' in df.columns:
         df['crs_baseline'] = df['crs_new'].copy()
         df.drop('crs_new', axis=1, inplace=True)
 
+    if 'crs.baseline.power.kW' in df.columns:
+        df['crs_baseline'] = df['crs.baseline.power.kW'].copy()
+        df.drop('crs.baseline.power.kW', axis=1, inplace=True)
+
+    df['crs_baseline'] = df['crs_baseline'].interpolate('linear')
+    df['building_baseline'] = df['building_baseline'].interpolate('linear')
+    df['temperature'] = df['temperature'].interpolate('linear')
+
     df['baseline_no_crs'] = df['building_baseline'] - df['crs_baseline']
 
     df.reset_index(drop=True, inplace=True)
+
+    print(df['timestamp'].head())
+
     return df
 
 
@@ -95,7 +123,7 @@ def get_site_info():
                                       k != 'site'}
     return site_info
 
-@pickle_jar(detect_changes=True, reload=True)
+# @pickle_jar(detect_changes=True, reload=True)
 def load_data(site, site_info, power_file=None, start=None, end=None, thermal_info=True):
     if power_file is None:
         path = '../input/'
@@ -106,8 +134,15 @@ def load_data(site, site_info, power_file=None, start=None, end=None, thermal_in
     power_data = read_power_data(site, power_file, start, end)
     power_data['mbh'] = float(site_info['lt_mbh']) + float(site_info['mt_mbh'])
     if thermal_info:
+
+
+        if site.startswith('WF'):
+            config_file = '../input/WF_LTSB_mass_and_SST.csv'
+        else:
+            config_file = '../input/WM_LTSB_mass_and_SST_new.csv'
+
         master_conf = get_thermal_config(site, start, end,
-                                         '../input/WM_LTSB_mass_and_SST_new.csv')
+                                         config_file)
         master_conf[
             'MRC'] = power_data['crs_baseline'].max() + 2
 
@@ -116,7 +151,7 @@ def load_data(site, site_info, power_file=None, start=None, end=None, thermal_in
         return power_data, master_conf
     return power_data
 
-@pickle_jar(reload=True)
+# @pickle_jar(reload=True)
 def load_all_data(sites, files=None):
     data = []
 
@@ -147,8 +182,8 @@ def get_thermal_config(site, start, end, lt_config_file):
     sst_max_f = lt_conf.loc[lt_conf.Store == site]['SST_max'].iloc[0]
     sst_min_f = lt_conf.loc[lt_conf.Store == site]['SST_min'].iloc[0]
     sst_mid_f = (sst_max_f + sst_min_f) / 2
-    cop_mid_sst = partial(thermal_util.master_cop_eq, thermal_util.farenheit_to_celsius(sst_mid_f))
-    cop_max_sst = partial(thermal_util.master_cop_eq, thermal_util.farenheit_to_celsius(sst_max_f))
+    cop_mid_sst = partial(thermal_util.master_cop_eq, thermal_util.fahrenheit_to_celsius(sst_mid_f))
+    cop_max_sst = partial(thermal_util.master_cop_eq, thermal_util.fahrenheit_to_celsius(sst_max_f))
     master = {
         'site': site,
         'site_id': site_id,
