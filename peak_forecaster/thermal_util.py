@@ -8,7 +8,7 @@ def fahrenheit_to_celsius(fahrenheit):
 
 
 def master_cop_eq(sst, oat):
-    return 0.03365441 * sst - 0.03725518 * oat + 3.681996189703361 + 0.35
+    return (0.03365441 * sst) - (0.03725518 * oat) + 3.681996189703361 + 0.35
 
 
 def add_thermal_info(power_data, config):
@@ -60,9 +60,9 @@ def get_charge_cop(sst_list, oat_list):
 
 
 def get_heat_leak(df, config):
-    df = df.assign(
-        oat_c=df.temperature.apply(lambda t: fahrenheit_to_celsius(t)))
+    df = df.assign(oat_c=df.temperature.apply(lambda t: fahrenheit_to_celsius(t)))
     cop_heat_leak = df.oat_c.apply(lambda v: config['cop_max_sst'](v))
     heat_load = df.discharge_limits * cop_heat_leak
     heat_leak = heat_load * config['sst_factor'] / config['lt_capacity']
+    print(heat_leak)
     return heat_leak

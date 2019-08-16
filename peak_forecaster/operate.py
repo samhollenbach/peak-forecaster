@@ -171,12 +171,6 @@ class StandardOperator:
 
                 current_soc = soc
 
-                if '06-10' in row['date']:
-                    print(offset)
-                    print(target)
-                    print(current_soc)
-                    print(row)
-
             new_day_data.append(day)
         new_data = pd.concat(new_day_data)
         return new_data
