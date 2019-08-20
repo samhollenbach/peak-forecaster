@@ -1,6 +1,6 @@
 import os
 import pickle
-from peak_forecaster.display import baseline_plot2
+from peak_forecaster.display import show
 from peak_forecaster import savings
 import matplotlib.pyplot as plt
 import datetime
