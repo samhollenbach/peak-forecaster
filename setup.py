@@ -22,6 +22,7 @@ setup(
             'sklearn',
             'seaborn',
             'tensorflow',
+            'savings>=1.3.0',
             'optimizer-engine',
         ],
     test_suite='nose.collector',
