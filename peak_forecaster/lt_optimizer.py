@@ -423,14 +423,7 @@ class Optimizer:
                 # Additional bounding constraint on discharge offset as f(SOC)
                 for line in self.dchg_limit_curve:
                     m, b = line
-                    self.frame += self.dof[self.time_labels[t]] <= ((
-                                                                            m *
-                                                                            self.soc[
-                                                                                self.time_labels[
-                                                                                    t]] + b) /
-                                                                    cop_dchg[
-                                                                        self.time_labels[
-                                                                            t]])
+                    self.frame += self.dof[self.time_labels[t]] <= ((m * self.soc[self.time_labels[t]] + b) / cop_dchg[self.time_labels[t]])
             else:
                 if self.dchg_limit_curve:
                     common.warning('Value provided for "dchg_limit_curve" but '
@@ -444,14 +437,7 @@ class Optimizer:
                 # Additional bounding constraint on discharge offset as f(SOC)
                 for line in self.chg_limit_curve:
                     m, b = line
-                    self.frame += self.cof[self.time_labels[t]] <= ((
-                                                                            m *
-                                                                            self.soc[
-                                                                                self.time_labels[
-                                                                                    t]] + b) /
-                                                                    cop_chg[
-                                                                        self.time_labels[
-                                                                            t]])
+                    self.frame += self.cof[self.time_labels[t]] <= ((m * self.soc[self.time_labels[t]] + b) / cop_chg[self.time_labels[t]])
             else:
                 if self.chg_limit_curve:
                     common.warning('Value provided for "chg_limit_curve" but '
